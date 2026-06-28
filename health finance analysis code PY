@@ -1,0 +1,222 @@
+"""
+Health & Finance Data Analysis Project
+----------------------------------------
+Goal: Analyze the relationship between
+personal/household finances
+(income, savings, insurance costs) and health
+outcomes/spending
+(medical expenses, BMI, chronic conditions).
+This script:
+1. Generates a realistic synthetic dataset (swap in
+your own CSV easily)
+2. Cleans and explores the data
+3. Builds visualizations linking finance and health
+metrics
+4. Trains a regression model to predict medical
+expenses from
+financial + health features
+5. Reports correlation insights and feature
+importance
+Requirements:
+pip install pandas numpy matplotlib seaborn
+scikit-learn
+"""
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_absolute_error,
+r2_scoreRANDOM_SEED = 42
+np.random.seed(RANDOM_SEED)
+# ---------------------------------------------------
+------------------
+# 1. LOAD OR GENERATE DATA
+# ---------------------------------------------------
+------------------
+def load_data(csv_path: str = None) -> pd.DataFrame:
+"""
+Load a real dataset if a CSV path is provided,
+otherwise generate
+a synthetic but realistic health-finance dataset.
+Expected columns for a real dataset:
+age, sex, bmi, children, smoker, region,
+annual_income, savings, insurance_premium,
+medical_expenses
+"""
+if csv_path:
+return pd.read_csv(csv_path)
+n = 2000
+age = np.random.randint(18, 75, n)
+sex = np.random.choice(["male", "female"], n)
+bmi = np.round(np.random.normal(27, 5,
+n).clip(15, 50), 1)
+children = np.random.poisson(1.1, n).clip(0, 5)
+smoker = np.random.choice(["yes", "no"], n, p=
+[0.2, 0.8])
+region = np.random.choice(["northeast",
+"northwest", "southeast", "southwest"], n)
+# Income correlated loosely with age (career
+growth) + noise
+annual_income = (20000 + age * 650 +
+np.random.normal(0, 8000, n)).clip(15000, 200000)
+# Savings correlated with income, penalized by
+smoking & high BMIsavings = (annual_income *
+np.random.uniform(0.05, 0.3, n)
+- (smoker == "yes") * 4000
+- (bmi > 30) * 1500).clip(0, None)
+# Insurance premium driven by age, bmi, smoking
+insurance_premium = (300 + age * 8 + (bmi -
+25).clip(0, None) * 15
++ (smoker == "yes") * 1800
++ np.random.normal(0, 200,
+n)).clip(200, None)
+# Medical expenses: realistic nonlinear drivers
+(smoking & BMI dominate)
+medical_expenses = (
+250 * age
++ (smoker == "yes") * 15000
++ (bmi - 25).clip(0, None) * 400
++ children * 500
+- (annual_income / 1000) # higher
+income -> slightly better preventive care
++ np.random.normal(0, 2000, n)
+).clip(500, None)
+df = pd.DataFrame({
+"age": age,
+"sex": sex,
+"bmi": bmi,
+"children": children,
+"smoker": smoker,
+"region": region,
+"annual_income": annual_income.round(2),
+"savings": savings.round(2),
+"insurance_premium":
+insurance_premium.round(2),
+"medical_expenses":
+medical_expenses.round(2),
+})
+return df
+# ---------------------------------------------------------------------
+# 2. EXPLORATORY DATA ANALYSIS
+# ---------------------------------------------------
+------------------
+def explore_data(df: pd.DataFrame):
+print("\n--- Dataset Overview ---")
+print(df.info())
+print("\n--- Summary Statistics ---")
+print(df.describe())
+# Financial stress indicator: % of income spent
+on health
+df["health_cost_ratio"] = (
+(df["medical_expenses"] +
+df["insurance_premium"]) / df["annual_income"]
+)
+print("\n--- Correlation with Medical Expenses --
+-")
+numeric_cols =
+df.select_dtypes(include=np.number)
+print(numeric_cols.corr()
+["medical_expenses"].sort_values(ascending=False))
+return df
+def plot_insights(df: pd.DataFrame):
+sns.set_style("whitegrid")
+fig, axes = plt.subplots(2, 2, figsize=(13, 10))
+sns.scatterplot(data=df, x="annual_income",
+y="medical_expenses",
+hue="smoker", ax=axes[0, 0],
+alpha=0.6)
+axes[0, 0].set_title("Income vs Medical Expenses
+(by smoking status)")
+sns.boxplot(data=df, x="smoker",
+y="health_cost_ratio", ax=axes[0, 1])
+axes[0, 1].set_title("Healthcare Cost as % of
+Income: Smoker vs Non-smoker"sns.scatterplot(data=df, x="bmi",
+y="insurance_premium", ax=axes[1, 0], alpha=0.6)
+axes[1, 0].set_title("BMI vs Insurance Premium")
+sns.histplot(df["health_cost_ratio"], bins=40,
+kde=True, ax=axes[1, 1])
+axes[1, 1].set_title("Distribution of Healthcare
+Cost Burden (% of Income)")
+plt.tight_layout()
+plt.savefig("health_finance_insights.png",
+dpi=150)
+print("\nSaved chart ->
+health_finance_insights.png")
+# ---------------------------------------------------
+------------------
+# 3. PREDICTIVE MODEL: medical_expenses from health +
+finance features
+# ---------------------------------------------------
+------------------
+def build_model(df: pd.DataFrame):
+features = ["age", "sex", "bmi", "children",
+"smoker", "region",
+"annual_income", "savings",
+"insurance_premium"]
+target = "medical_expenses"
+X = df[features]
+y = df[target]
+categorical = ["sex", "smoker", "region"]
+numeric = [c for c in features if c not in
+categorical]
+preprocessor = ColumnTransformer([
+("cat", OneHotEncoder(drop="first"),
+categorical),
+], remainder="passthrough")X_train, X_test, y_train, y_test =
+train_test_split(
+X, y, test_size=0.2, random_state=RANDOM_SEED
+)
+models = {
+"Linear Regression": LinearRegression(),
+"Random Forest":
+RandomForestRegressor(n_estimators=200,
+random_state=RANDOM_SEED),
+}
+results = {}
+for name, model in models.items():
+pipe = Pipeline([("prep", preprocessor),
+("model", model)])
+pipe.fit(X_train, y_train)
+preds = pipe.predict(X_test)
+mae = mean_absolute_error(y_test, preds)
+r2 = r2_score(y_test, preds)
+results[name] = {"pipeline": pipe, "MAE":
+mae, "R2": r2}
+print(f"\n--- {name} ---")
+print(f"MAE: ${mae:,.2f}")
+print(f"R^2: {r2:.3f}")
+# Feature importance from Random Forest
+rf_pipe = results["Random Forest"]["pipeline"]
+feature_names = (
+list(rf_pipe.named_steps["prep"].named_transformers_[
+"cat"].get_feature_names_out(categorical))
++ numeric
+)
+importances =
+rf_pipe.named_steps["model"].feature_importances_
+importance_df = pd.DataFrame({"feature":
+feature_names, "importance": importances}) \
+.sort_values("importance", ascending=False)print("\n--- Feature Importance (Random Forest) -
+--")
+print(importance_df.to_string(index=False))
+return results, importance_df
+# ---------------------------------------------------
+------------------
+# MAIN
+# ---------------------------------------------------
+------------------
+if __name__ == "__main__":
+# Swap in csv_path="your_file.csv" to use real
+data instead of synthetic
+data = load_data(csv_path=None)
+data = explore_data(data)
+plot_insights(data)
+model_results, importances = build_model(data)
+print("\nDone. Chart saved as
+health_finance_insights.png")
