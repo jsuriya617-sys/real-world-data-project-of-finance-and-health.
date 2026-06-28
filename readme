@@ -1,0 +1,68 @@
+Health & Finance Data Analysis
+Project
+A real-world style data science project exploring how financial
+factors
+(income, savings, insurance premiums) relate to health outcomes
+and costs
+(BMI, smoking, medical expenses).
+What this project does
+1. Loads data — uses a realistic synthetic dataset by default, or
+your
+own CSV if you provide one.
+2. Explores the data — summary stats and correlations between
+financial
+and health variables.
+3. Visualizes insights — 4 charts saved to
+health_finance_insights.png :
+Income vs medical expenses (by smoker status)
+Healthcare cost as % of income: smoker vs non-smoker
+BMI vs insurance premium
+Distribution of healthcare cost burden
+4. Builds predictive models — Linear Regression and Random
+Forest to
+predict medical expenses from health + financial features,
+with
+accuracy metrics (MAE, R²) and feature importance ranking.Files
+File Purpose
+health_finance_analysis.py Main script — run this
+health_finance_insights.png
+Generated after running
+(charts)
+Setup
+pip install pandas numpy matplotlib seaborn scikitlearn
+Run
+python health_finance_analysis.py
+This prints dataset stats, correlations, model performance, and
+feature
+importance to the console, and saves the chart image.
+Using your own data
+Replace the load_data() call at the bottom of the script:
+data = load_data(csv_path="your_file.csv")
+Your CSV should have these columns (rename to match if neededage, sex, bmi, children, smoker, region,
+annual_income, savings, insurance_premium,
+medical_expenses
+A great real dataset to try: the classic Kaggle "Medical Cost
+Personal
+Datasets" ( insurance.csv ) — just add annual_income and
+savings
+columns from another source, or simulate them, since that dataset
+doesn't
+include income data natively.
+Key columns explained
+annual_income — yearly household income
+savings — estimated savings, penalized by smoking/high BMI
+in the
+synthetic generator
+insurance_premium — annual cost of health insurance
+medical_expenses — actual healthcare spending (the
+prediction target)
+health_cost_ratio (derived) — (medical expenses + premium) /
+income,
+a measure of financial burden from healthcare
+Possible extensions
+Add time-series data to track costs/savings over multiple
+years
+Cluster households into financial-health risk segments
+(KMeans)
+Add a Streamlit dashboard for interactive exploration
+Bring in real regional cost-of-living or insurance market data
